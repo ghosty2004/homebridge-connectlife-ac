@@ -2,9 +2,10 @@
   "private": false,
   "displayName": "Homebridge ConnectLife AC",
   "name": "homebridge-connectlife-ac",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Control your ConnectLife air conditioner with Homebridge",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/ghosty2004/homebridge-connectlife-ac",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ghosty2004/homebridge-connectlife-ac.git"
@@ -15,7 +16,7 @@
   },
   "engines": {
     "node": "^18.17.0 || ^20.9.0",
-    "homebridge": "^1.8.0"
+    "homebridge": ">=1.7.0"
   },
   "main": "dist/index.js",
   "scripts": {
