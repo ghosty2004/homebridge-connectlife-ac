@@ -47,10 +47,6 @@ export class TemperatureAccessory {
       .onGet(this.getCurrentTemperature.bind(this));
 
     this.service
-      .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
-      .onGet(this.getCurrentHeaterCoolerState.bind(this));
-
-    this.service
       .getCharacteristic(this.platform.Characteristic.SwingMode)
       .onSet(this.setSwingMode.bind(this))
       .onGet(this.getSwingMode.bind(this));
@@ -116,24 +112,6 @@ export class TemperatureAccessory {
     );
 
     return t_temp;
-  }
-
-  async getCurrentHeaterCoolerState(): Promise<CharacteristicValue> {
-    const { t_work_mode } = await this.connectLifeApi.getDeviceProperties(
-      this.deviceNickName,
-      {
-        t_work_mode: 'integer',
-      },
-    );
-
-    switch (t_work_mode) {
-      case WorkModes.Cool:
-        return this.platform.Characteristic.CurrentHeaterCoolerState.COOLING;
-      case WorkModes.Heat:
-        return this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
-      default:
-        return this.platform.Characteristic.CurrentHeaterCoolerState.IDLE;
-    }
   }
 
   setSwingMode(value: CharacteristicValue) {
