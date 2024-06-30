@@ -163,6 +163,15 @@ export class ConnectLifeApi {
           }, {} as Record<string, any>) as Promise<
             Record<keyof T, T[keyof T] extends 'integer' ? number : string>
           >,
-      );
+      )
+      .catch(() => ({
+        // fallback to some defaults values in case of any error
+        ...Object.fromEntries(
+          Object.entries(properties).map(([key, type]) => [
+            key,
+            type === 'integer' ? 0 : '',
+          ]),
+        ),
+      }));
   }
 }
