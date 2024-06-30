@@ -1,8 +1,8 @@
 {
-  "private": true,
+  "private": false,
   "displayName": "Homebridge ConnectLife AC",
   "name": "homebridge-connectlife-ac",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Control your ConnectLife air conditioner with Homebridge",
   "license": "Apache-2.0",
   "repository": {
