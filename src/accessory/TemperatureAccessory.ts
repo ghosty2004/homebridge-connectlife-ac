@@ -120,11 +120,21 @@ export class TemperatureAccessory {
   }
 
   setSwingMode(value: CharacteristicValue) {
+    this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
+      t_up_down: value,
+    });
     this.platform.log.info('Set SwingMode', value);
   }
 
-  getSwingMode(): CharacteristicValue {
-    return 0;
+  async getSwingMode(): Promise<CharacteristicValue> {
+    const { t_up_down } = await this.connectLifeApi.getDeviceProperties(
+      this.deviceNickName,
+      {
+        t_up_down: 'integer',
+      },
+    );
+
+    return t_up_down;
   }
 
   async setCoolingThresholdTemperature(value: CharacteristicValue) {
