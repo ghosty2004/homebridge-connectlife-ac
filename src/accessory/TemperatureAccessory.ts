@@ -2,6 +2,7 @@ import { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
 import { ConnectLifeAcPlatformPlugin } from '../platform';
 import { ConnectLifeApi } from '../lib';
 import { WorkModes } from '../constants';
+import { celsiusToFahrenheit, fahrenheitToCelsius } from '../utils';
 
 export class TemperatureAccessory {
   private deviceNickName: string;
@@ -64,6 +65,11 @@ export class TemperatureAccessory {
       )
       .onSet(this.setHeatingThresholdTemperature.bind(this))
       .onGet(this.getHeatingThresholdTemperature.bind(this));
+
+    this.service
+      .getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
+      .onSet(this.setTemperatureDisplayUnits.bind(this))
+      .onGet(this.getTemperatureDisplayUnits.bind(this));
   }
 
   async setActive(value: CharacteristicValue) {
@@ -104,14 +110,13 @@ export class TemperatureAccessory {
   }
 
   async getCurrentTemperature(): Promise<CharacteristicValue> {
-    const { t_temp } = await this.connectLifeApi.getDeviceProperties(
-      this.deviceNickName,
-      {
+    const { t_temp, t_temp_type } =
+      await this.connectLifeApi.getDeviceProperties(this.deviceNickName, {
         t_temp: 'integer',
-      },
-    );
+        t_temp_type: 'integer',
+      });
 
-    return t_temp;
+    return t_temp_type === 1 ? fahrenheitToCelsius(t_temp as number) : t_temp;
   }
 
   setSwingMode(value: CharacteristicValue) {
@@ -122,18 +127,26 @@ export class TemperatureAccessory {
     return 0;
   }
 
-  setCoolingThresholdTemperature(value: CharacteristicValue) {
+  async setCoolingThresholdTemperature(value: CharacteristicValue) {
+    const { t_temp_type } = await this.connectLifeApi.getDeviceProperties(
+      this.deviceNickName,
+      {
+        t_temp_type: 'integer',
+      },
+    );
+
     this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
-      t_temp: value,
+      t_temp: t_temp_type === 1 ? celsiusToFahrenheit(value as number) : value,
       t_work_mode: WorkModes.Cool,
     });
     this.platform.log.info('Set CoolingThresholdTemperature', value);
   }
 
   async getCoolingThresholdTemperature(): Promise<CharacteristicValue> {
-    const { t_temp, t_work_mode } =
+    const { t_temp, t_temp_type, t_work_mode } =
       await this.connectLifeApi.getDeviceProperties(this.deviceNickName, {
         t_temp: 'integer',
+        t_temp_type: 'integer',
         t_work_mode: 'integer',
       });
 
@@ -141,21 +154,29 @@ export class TemperatureAccessory {
       return 10;
     }
 
-    return t_temp;
+    return t_temp_type === 1 ? fahrenheitToCelsius(t_temp as number) : t_temp;
   }
 
-  setHeatingThresholdTemperature(value: CharacteristicValue) {
+  async setHeatingThresholdTemperature(value: CharacteristicValue) {
+    const { t_temp_type } = await this.connectLifeApi.getDeviceProperties(
+      this.deviceNickName,
+      {
+        t_temp_type: 'integer',
+      },
+    );
+
     this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
-      t_temp: value,
+      t_temp: t_temp_type === 1 ? celsiusToFahrenheit(value as number) : value,
       t_work_mode: WorkModes.Heat,
     });
     this.platform.log.info('Set HeatingThresholdTemperature', value);
   }
 
   async getHeatingThresholdTemperature(): Promise<CharacteristicValue> {
-    const { t_temp, t_work_mode } =
+    const { t_temp, t_temp_type, t_work_mode } =
       await this.connectLifeApi.getDeviceProperties(this.deviceNickName, {
         t_temp: 'integer',
+        t_temp_type: 'integer',
         t_work_mode: 'integer',
       });
 
@@ -163,6 +184,24 @@ export class TemperatureAccessory {
       return 0;
     }
 
-    return t_temp;
+    return t_temp_type === 1 ? fahrenheitToCelsius(t_temp as number) : t_temp;
+  }
+
+  setTemperatureDisplayUnits(value: CharacteristicValue) {
+    this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
+      t_temp_type: value,
+    });
+    this.platform.log.info('Set TemperatureDisplayUnits', value);
+  }
+
+  async getTemperatureDisplayUnits(): Promise<CharacteristicValue> {
+    const { t_temp_type } = await this.connectLifeApi.getDeviceProperties(
+      this.deviceNickName,
+      {
+        t_temp_type: 'integer',
+      },
+    );
+
+    return t_temp_type;
   }
 }
