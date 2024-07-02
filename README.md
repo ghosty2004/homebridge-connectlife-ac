@@ -30,3 +30,4 @@ This is a homebridge plugin which allow to send commands to your <a href="https:
 - `Device Nickname` - the nickname of your AC device (this should be the nickname of your AC which can be found in ConnectLife app, see <a href="https://i.imgur.com/sR6uY3u.png">this</a>)
 - `Login ID` - your E-Mail from ConnectLife
 - `Password` - your password from ConnectLife
+- `Debug Mode` - you want to see more informations about what't going on ?

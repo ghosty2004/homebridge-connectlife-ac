@@ -2,6 +2,7 @@ import axios from 'axios';
 import NodeCache from 'node-cache';
 import { Appliance } from '../interfaces';
 import { CharacteristicValue } from 'homebridge';
+import { ConnectLifeAcPlatformPlugin } from '../platform';
 
 axios.defaults.headers['User-Agent'] = 'connectlife-api-connector 2.1.11';
 
@@ -11,6 +12,10 @@ export class ConnectLifeApi {
   constructor(
     private readonly loginID: string,
     private readonly password: string,
+    private readonly options: {
+      debugMode?: boolean;
+      log?: ConnectLifeAcPlatformPlugin['log'];
+    } = {},
   ) {}
 
   async getAccessToken() {
@@ -138,7 +143,7 @@ export class ConnectLifeApi {
     deviceNickname: string,
     properties: T,
   ) {
-    return axios
+    const result = await axios
       .get<Appliance[]>('https://connectlife.bapi.ovh/appliances', {
         headers: {
           'X-Token': await this.getAccessToken(),
@@ -173,5 +178,11 @@ export class ConnectLifeApi {
           ]),
         ),
       }));
+
+    if (this.options.debugMode) {
+      this.options.log?.info('getDeviceProperties', result);
+    }
+
+    return result;
   }
 }

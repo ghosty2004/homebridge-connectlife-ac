@@ -5,6 +5,7 @@ import { WorkModes } from '../constants';
 import { celsiusToFahrenheit, fahrenheitToCelsius } from '../utils';
 
 export class TemperatureAccessory {
+  private debugMode: boolean;
   private deviceNickName: string;
   private connectLifeApi: ConnectLifeApi;
   private service: Service;
@@ -19,8 +20,12 @@ export class TemperatureAccessory {
       throw new Error('Missing required config');
     }
 
+    this.debugMode = !!platform.config?.debugMode;
     this.deviceNickName = deviceNickName;
-    this.connectLifeApi = new ConnectLifeApi(loginID, password);
+    this.connectLifeApi = new ConnectLifeApi(loginID, password, {
+      debugMode: this.debugMode,
+      log: platform.log,
+    });
 
     this.accessory
       .getService(this.platform.Service.AccessoryInformation)!
@@ -88,7 +93,9 @@ export class TemperatureAccessory {
       t_power: value,
     });
 
-    this.platform.log.info('Set Active', value);
+    if (this.debugMode) {
+      this.platform.log.info('Set Active', value);
+    }
   }
 
   async getActive(): Promise<CharacteristicValue> {
@@ -106,7 +113,10 @@ export class TemperatureAccessory {
     this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
       t_work_mode: WorkModes.Auto,
     });
-    this.platform.log.info('Set CurrentTemperature', _value);
+
+    if (this.debugMode) {
+      this.platform.log.info('Set CurrentTemperature', _value);
+    }
   }
 
   async getCurrentTemperature(): Promise<CharacteristicValue> {
@@ -123,7 +133,10 @@ export class TemperatureAccessory {
     this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
       t_up_down: value,
     });
-    this.platform.log.info('Set SwingMode', value);
+
+    if (this.debugMode) {
+      this.platform.log.info('Set SwingMode', value);
+    }
   }
 
   async getSwingMode(): Promise<CharacteristicValue> {
@@ -149,7 +162,10 @@ export class TemperatureAccessory {
       t_temp: t_temp_type === 1 ? celsiusToFahrenheit(value as number) : value,
       t_work_mode: WorkModes.Cool,
     });
-    this.platform.log.info('Set CoolingThresholdTemperature', value);
+
+    if (this.debugMode) {
+      this.platform.log.info('Set CoolingThresholdTemperature', value);
+    }
   }
 
   async getCoolingThresholdTemperature(): Promise<CharacteristicValue> {
@@ -179,7 +195,10 @@ export class TemperatureAccessory {
       t_temp: t_temp_type === 1 ? celsiusToFahrenheit(value as number) : value,
       t_work_mode: WorkModes.Heat,
     });
-    this.platform.log.info('Set HeatingThresholdTemperature', value);
+
+    if (this.debugMode) {
+      this.platform.log.info('Set HeatingThresholdTemperature', value);
+    }
   }
 
   async getHeatingThresholdTemperature(): Promise<CharacteristicValue> {
@@ -201,7 +220,10 @@ export class TemperatureAccessory {
     this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
       t_temp_type: value,
     });
-    this.platform.log.info('Set TemperatureDisplayUnits', value);
+
+    if (this.debugMode) {
+      this.platform.log.info('Set TemperatureDisplayUnits', value);
+    }
   }
 
   async getTemperatureDisplayUnits(): Promise<CharacteristicValue> {

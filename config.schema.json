@@ -25,6 +25,12 @@
         "title": "Password",
         "type": "string",
         "required": true
+      },
+      "debugMode": {
+        "title": "Debug Mode",
+        "type": "integer",
+        "required": true,
+        "default": 0
       }
     }
   }
