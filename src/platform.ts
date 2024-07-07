@@ -10,6 +10,7 @@ import {
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { TemperatureAccessory } from './accessory';
+import { capitalizeFirstWord } from './utils';
 
 /**
  * HomebridgePlatform
@@ -41,13 +42,13 @@ export class ConnectLifeAcPlatformPlugin implements DynamicPlatformPlugin {
   }
 
   initDevices() {
-    const devices = [
-      {
-        uniqueId: 'ABCD',
-        displayName: 'Temperature',
+    const devices = ((this.config?.deviceNickNames || []) as string[]).map(
+      (deviceNickName) => ({
+        uniqueId: deviceNickName.replace(/\s+/g, ''),
+        displayName: capitalizeFirstWord(deviceNickName),
         accessory: TemperatureAccessory,
-      },
-    ];
+      }),
+    );
 
     for (const device of devices) {
       const uuid = this.api.hap.uuid.generate(device.uniqueId);

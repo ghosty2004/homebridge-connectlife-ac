@@ -11,9 +11,13 @@
         "required": true,
         "default": "ConnectLife AC"
       },
-      "deviceNickName": {
-        "title": "Device Nickname",
-        "type": "string",
+      "deviceNickNames": {
+        "title": "Device Nicknames",
+        "type": "array",
+        "items": {
+          "title": "Nickname",
+          "type": "string"
+        },
         "required": true
       },
       "loginID": {

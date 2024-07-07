@@ -14,7 +14,8 @@ export class TemperatureAccessory {
     private readonly platform: ConnectLifeAcPlatformPlugin,
     private readonly accessory: PlatformAccessory,
   ) {
-    const { deviceNickName, loginID, password } = platform.config;
+    const { loginID, password } = platform.config;
+    const deviceNickName = accessory.context.device?.displayName?.toLowerCase();
 
     if (!deviceNickName || !loginID || !password) {
       throw new Error('Missing required config');
