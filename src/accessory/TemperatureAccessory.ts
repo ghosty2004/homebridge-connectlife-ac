@@ -1,20 +1,29 @@
-import { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
-import { ConnectLifeAcPlatformPlugin } from '../platform';
-import { ConnectLifeApi } from '../lib';
-import { WorkModes } from '../constants';
-import { celsiusToFahrenheit, fahrenheitToCelsius } from '../utils';
+import {CharacteristicValue, PlatformAccessory, Service} from 'homebridge';
+import {ConnectLifeAcPlatformPlugin} from '../platform';
+import {ConnectLifeApi} from '../lib';
+import {WorkModes} from '../constants';
+import {celsiusToFahrenheit, fahrenheitToCelsius} from '../utils';
 
 export class TemperatureAccessory {
-  private debugMode: boolean;
-  private deviceNickName: string;
+  private readonly debugMode: boolean;
+  private readonly deviceNickName: string;
   private connectLifeApi: ConnectLifeApi;
   private service: Service;
 
+  private state = {
+    active: 0,
+    currentTemp: 0,
+    targetTemp: 22,
+    swing: 0,
+    tempUnit: 0,
+    workMode: WorkModes.Auto,
+  };
+
   constructor(
-    private readonly platform: ConnectLifeAcPlatformPlugin,
-    private readonly accessory: PlatformAccessory,
+        private readonly platform: ConnectLifeAcPlatformPlugin,
+        private readonly accessory: PlatformAccessory,
   ) {
-    const { loginID, password } = platform.config;
+    const {loginID, password} = platform.config;
     const deviceNickName = accessory.context.device?.displayName?.toLowerCase();
 
     if (!deviceNickName || !loginID || !password) {
@@ -23,116 +32,178 @@ export class TemperatureAccessory {
 
     this.debugMode = !!platform.config?.debugMode;
     this.deviceNickName = deviceNickName;
+
     this.connectLifeApi = new ConnectLifeApi(loginID, password, {
       debugMode: this.debugMode,
       log: platform.log,
     });
 
-    this.accessory
-      .getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'null')
-      .setCharacteristic(this.platform.Characteristic.Model, 'null')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'null');
+        this.accessory
+          .getService(this.platform.Service.AccessoryInformation)!
+          .setCharacteristic(this.platform.Characteristic.Manufacturer, 'ConnectLife')
+          .setCharacteristic(this.platform.Characteristic.Model, 'Air Conditioner')
+          .setCharacteristic(this.platform.Characteristic.SerialNumber, 'N/A');
 
-    this.service =
-      this.accessory.getService(this.platform.Service.HeaterCooler) ||
-      this.accessory.addService(this.platform.Service.HeaterCooler);
+        this.service =
+            this.accessory.getService(this.platform.Service.HeaterCooler) ||
+            this.accessory.addService(this.platform.Service.HeaterCooler);
 
-    this.service.setCharacteristic(
-      this.platform.Characteristic.Name,
-      accessory.context.device.displayName,
-    );
+        this.service.setCharacteristic(
+          this.platform.Characteristic.Name,
+          accessory.context.device.displayName,
+        );
 
-    this.service
-      .getCharacteristic(this.platform.Characteristic.Active)
-      .onSet(this.setActive.bind(this))
-      .onGet(this.getActive.bind(this));
+        this.service
+          .getCharacteristic(this.platform.Characteristic.Active)
+          .onSet(this.setActive.bind(this))
+          .onGet(this.getActive.bind(this));
 
-    this.service
-      .getCharacteristic(this.platform.Characteristic.CurrentTemperature)
-      .onSet(this.setCurrentTemperature.bind(this))
-      .onGet(this.getCurrentTemperature.bind(this));
+        this.service
+          .getCharacteristic(this.platform.Characteristic.CurrentTemperature)
+          .onGet(this.getCurrentTemperature.bind(this));
 
-    this.service
-      .getCharacteristic(this.platform.Characteristic.SwingMode)
-      .onSet(this.setSwingMode.bind(this))
-      .onGet(this.getSwingMode.bind(this));
+        this.service
+          .getCharacteristic(this.platform.Characteristic.SwingMode)
+          .onSet(this.setSwingMode.bind(this))
+          .onGet(this.getSwingMode.bind(this));
 
-    this.service
-      .getCharacteristic(
-        this.platform.Characteristic.CoolingThresholdTemperature,
-      )
-      .onSet(this.setCoolingThresholdTemperature.bind(this))
-      .onGet(this.getCoolingThresholdTemperature.bind(this));
+        this.service
+          .getCharacteristic(
+            this.platform.Characteristic.CoolingThresholdTemperature,
+          )
+          .onSet(this.setCoolingThresholdTemperature.bind(this))
+          .onGet(this.getCoolingThresholdTemperature.bind(this));
 
-    this.service
-      .getCharacteristic(
-        this.platform.Characteristic.HeatingThresholdTemperature,
-      )
-      .onSet(this.setHeatingThresholdTemperature.bind(this))
-      .onGet(this.getHeatingThresholdTemperature.bind(this));
+        this.service
+          .getCharacteristic(
+            this.platform.Characteristic.HeatingThresholdTemperature,
+          )
+          .onSet(this.setHeatingThresholdTemperature.bind(this))
+          .onGet(this.getHeatingThresholdTemperature.bind(this));
 
-    this.service
-      .getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
-      .onSet(this.setTemperatureDisplayUnits.bind(this))
-      .onGet(this.getTemperatureDisplayUnits.bind(this));
+        this.service
+          .getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
+          .onSet(this.setTemperatureDisplayUnits.bind(this))
+          .onGet(this.getTemperatureDisplayUnits.bind(this));
+
+        this.startPolling();
+  }
+
+  private startPolling() {
+    const POLL_INTERVAL = 15000; // 15s (seguro para la API)
+
+    setInterval(async () => {
+      try {
+        const data = await this.connectLifeApi.getDeviceProperties(
+          this.deviceNickName,
+          {
+            t_power: 'integer',
+            t_temp: 'integer',
+            t_temp_type: 'integer',
+            t_up_down: 'integer',
+            t_work_mode: 'integer',
+            f_temp_in: 'integer',
+          },
+        );
+
+        const {
+          t_power,
+          t_temp,
+          t_temp_type,
+          t_up_down,
+          t_work_mode,
+          f_temp_in,
+        } = data as {
+                    t_power: number;
+                    t_temp: number;
+                    t_temp_type: number;
+                    t_up_down: number;
+                    t_work_mode: number;
+                    f_temp_in: number;
+                };
+
+        this.state.active = t_power;
+        this.state.targetTemp = t_temp;
+        this.state.tempUnit = t_temp_type;
+        this.state.swing = t_up_down;
+        this.state.workMode = t_work_mode;
+
+        this.state.currentTemp =
+                    t_temp_type === 1
+                      ? fahrenheitToCelsius(f_temp_in)
+                      : f_temp_in;
+
+        this.service.updateCharacteristic(
+          this.platform.Characteristic.Active,
+          this.state.active ? 1 : 0,
+        );
+
+        this.service.updateCharacteristic(
+          this.platform.Characteristic.CurrentTemperature,
+          this.state.currentTemp,
+        );
+      } catch (err) {
+        this.platform.log.warn(
+          `[${this.deviceNickName}] Polling failed`,
+          err,
+        );
+      }
+    }, POLL_INTERVAL);
+  }
+
+  getActive(): CharacteristicValue {
+    return this.state.active ? 1 : 0;
+  }
+
+  getCurrentTemperature(): CharacteristicValue {
+    return this.state.currentTemp;
+  }
+
+  getSwingMode(): CharacteristicValue {
+    return this.state.swing;
+  }
+
+  getCoolingThresholdTemperature(): CharacteristicValue {
+    if (this.state.workMode !== WorkModes.Cool) {
+      return 10;
+    }
+    return this.state.targetTemp;
+  }
+
+  getHeatingThresholdTemperature(): CharacteristicValue {
+    if (this.state.workMode !== WorkModes.Heat) {
+      return 0;
+    }
+    return this.state.targetTemp;
+  }
+
+  getTemperatureDisplayUnits(): CharacteristicValue {
+    return this.state.tempUnit;
   }
 
   async setActive(value: CharacteristicValue) {
-    const { t_power } = await this.connectLifeApi.getDeviceProperties(
-      this.deviceNickName,
-      {
-        t_power: 'integer',
-      },
-    );
+    const newValue = value ? 1 : 0;
 
-    if (t_power === value) {
+    if (this.state.active === newValue) {
       return;
     }
 
-    this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
-      t_power: value,
+    this.state.active = newValue;
+
+    await this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
+      t_power: newValue.toString(),
     });
 
     if (this.debugMode) {
-      this.platform.log.info('Set Active', value);
+      this.platform.log.info('Set Active', newValue);
     }
   }
 
-  async getActive(): Promise<CharacteristicValue> {
-    const { t_power } = await this.connectLifeApi.getDeviceProperties(
-      this.deviceNickName,
-      {
-        t_power: 'integer',
-      },
-    );
+  async setSwingMode(value: CharacteristicValue) {
+    this.state.swing = value as number;
 
-    return t_power;
-  }
-
-  setCurrentTemperature(_value: CharacteristicValue) {
-    this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
-      t_work_mode: WorkModes.Auto,
-    });
-
-    if (this.debugMode) {
-      this.platform.log.info('Set CurrentTemperature', _value);
-    }
-  }
-
-  async getCurrentTemperature(): Promise<CharacteristicValue> {
-    const { t_temp, t_temp_type } =
-      await this.connectLifeApi.getDeviceProperties(this.deviceNickName, {
-        t_temp: 'integer',
-        t_temp_type: 'integer',
-      });
-
-    return t_temp_type === 1 ? fahrenheitToCelsius(t_temp as number) : t_temp;
-  }
-
-  setSwingMode(value: CharacteristicValue) {
-    this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
-      t_up_down: value,
+    await this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
+      t_up_down: value.toString(),
     });
 
     if (this.debugMode) {
@@ -140,101 +211,51 @@ export class TemperatureAccessory {
     }
   }
 
-  async getSwingMode(): Promise<CharacteristicValue> {
-    const { t_up_down } = await this.connectLifeApi.getDeviceProperties(
-      this.deviceNickName,
-      {
-        t_up_down: 'integer',
-      },
-    );
-
-    return t_up_down;
-  }
-
   async setCoolingThresholdTemperature(value: CharacteristicValue) {
-    const { t_temp_type } = await this.connectLifeApi.getDeviceProperties(
-      this.deviceNickName,
-      {
-        t_temp_type: 'integer',
-      },
-    );
+    const temp = value as number;
+    this.state.targetTemp = temp;
+    this.state.workMode = WorkModes.Cool;
 
-    this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
-      t_temp: t_temp_type === 1 ? celsiusToFahrenheit(value as number) : value,
-      t_work_mode: WorkModes.Cool,
+    await this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
+      t_temp:
+                this.state.tempUnit === 1
+                  ? celsiusToFahrenheit(temp).toString()
+                  : temp.toString(),
+      t_work_mode: WorkModes.Cool.toString(),
     });
 
     if (this.debugMode) {
-      this.platform.log.info('Set CoolingThresholdTemperature', value);
+      this.platform.log.info('Set CoolingThresholdTemperature', temp);
     }
-  }
-
-  async getCoolingThresholdTemperature(): Promise<CharacteristicValue> {
-    const { t_temp, t_temp_type, t_work_mode } =
-      await this.connectLifeApi.getDeviceProperties(this.deviceNickName, {
-        t_temp: 'integer',
-        t_temp_type: 'integer',
-        t_work_mode: 'integer',
-      });
-
-    if (t_work_mode !== WorkModes.Cool) {
-      return 10;
-    }
-
-    return t_temp_type === 1 ? fahrenheitToCelsius(t_temp as number) : t_temp;
   }
 
   async setHeatingThresholdTemperature(value: CharacteristicValue) {
-    const { t_temp_type } = await this.connectLifeApi.getDeviceProperties(
-      this.deviceNickName,
-      {
-        t_temp_type: 'integer',
-      },
-    );
+    const temp = value as number;
+    this.state.targetTemp = temp;
+    this.state.workMode = WorkModes.Heat;
 
-    this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
-      t_temp: t_temp_type === 1 ? celsiusToFahrenheit(value as number) : value,
-      t_work_mode: WorkModes.Heat,
+    await this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
+      t_temp:
+                this.state.tempUnit === 1
+                  ? celsiusToFahrenheit(temp).toString()
+                  : temp.toString(),
+      t_work_mode: WorkModes.Heat.toString(),
     });
 
     if (this.debugMode) {
-      this.platform.log.info('Set HeatingThresholdTemperature', value);
+      this.platform.log.info('Set HeatingThresholdTemperature', temp);
     }
   }
 
-  async getHeatingThresholdTemperature(): Promise<CharacteristicValue> {
-    const { t_temp, t_temp_type, t_work_mode } =
-      await this.connectLifeApi.getDeviceProperties(this.deviceNickName, {
-        t_temp: 'integer',
-        t_temp_type: 'integer',
-        t_work_mode: 'integer',
-      });
+  async setTemperatureDisplayUnits(value: CharacteristicValue) {
+    this.state.tempUnit = value as number;
 
-    if (t_work_mode !== WorkModes.Heat) {
-      return 0;
-    }
-
-    return t_temp_type === 1 ? fahrenheitToCelsius(t_temp as number) : t_temp;
-  }
-
-  setTemperatureDisplayUnits(value: CharacteristicValue) {
-    this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
-      t_temp_type: value,
+    await this.connectLifeApi.changeDeviceProperties(this.deviceNickName, {
+      t_temp_type: value.toString(),
     });
 
     if (this.debugMode) {
       this.platform.log.info('Set TemperatureDisplayUnits', value);
     }
-  }
-
-  async getTemperatureDisplayUnits(): Promise<CharacteristicValue> {
-    const { t_temp_type } = await this.connectLifeApi.getDeviceProperties(
-      this.deviceNickName,
-      {
-        t_temp_type: 'integer',
-      },
-    );
-
-    return t_temp_type;
   }
 }
