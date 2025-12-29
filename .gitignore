@@ -1,5 +1,5 @@
-# Ignore compiled code
-dist
+# Include compiled code for GitHub installs
+# dist
 
 # ------------- Defaults ------------- #
 
@@ -86,7 +86,7 @@ web_modules/
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist - included for GitHub installs
 
 # Gatsby files
 .cache/
